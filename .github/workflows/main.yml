@@ -1,0 +1,33 @@
+name: Build Violet installers
+on:
+  workflow_dispatch: {}
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Unpack the uploaded zip
+        run: python -m zipfile -e violet-desktop.zip .
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Build installer
+        working-directory: violet
+        run: |
+          npm install
+          npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: violet-${{ matrix.os }}
+          path: violet/src-tauri/target/release/bundle/
